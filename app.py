@@ -9,6 +9,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# --- DEBUG (à laisser pour vérifier démarrage) ---
+st.write("APP OK ✅")
+
 # --- CSS + NAVBAR FIXÉE ---
 st.markdown("""
 <style>
@@ -29,7 +32,7 @@ st.markdown("""
     justify-content: center;
 }
 
-/* TITRE CENTRÉ (indépendant sidebar) */
+/* TITRE CENTRÉ */
 .navbar-title {
     position: absolute;
     left: 50%;
@@ -49,7 +52,7 @@ st.markdown("""
     background-color: #F5F7FA !important;
 }
 
-/* Header natif transparent */
+/* Header transparent */
 header[data-testid="stHeader"] {
     background-color: transparent !important;
 }
@@ -60,9 +63,9 @@ section[data-testid="stSidebar"] {
     border-right: 1px solid #D0D0D0;
 }
 
-/* ICÔNE SIDEBAR (hamburger) */
+/* Icône sidebar */
 button[kind="header"] svg {
-    fill: #374151 !important; /* gris foncé */
+    fill: #374151 !important;
 }
 
 /* Texte */
@@ -118,11 +121,13 @@ div[role="option"]:hover {
 </div>
 """, unsafe_allow_html=True)
 
-# --- LOGIQUE ---
+# --- FONCTIONS ---
 def nettoyer(val):
-    if pd.isna(val): return ""
+    if pd.isna(val):
+        return ""
     v = str(val).strip()
-    if v.endswith('.0'): v = v[:-2]
+    if v.endswith('.0'):
+        v = v[:-2]
     return v
 
 def executer_traitement(df_base, df_data, col_sap_base, col_sap_data):
@@ -144,7 +149,7 @@ def executer_traitement(df_base, df_data, col_sap_base, col_sap_data):
 
     df_final = df_d.sort_values(by='POSITION_TRI', kind='mergesort').copy()
     df_final = df_final.drop(columns=['CLE_TEMP', 'POSITION_TRI'])
-    
+
     return df_final
 
 # --- SIDEBAR ---
@@ -157,55 +162,56 @@ if page == "Accueil":
     st.divider()
 
     # BASE
-    st.subheader("1️⃣ Fichier de BASE (Référence)")
-    file_base = st.file_uploader("Importer le fichier de BASE", type=["xlsx", "xls"], key="u_base")
-    
-    if file_base:
+    st.subheader("1️⃣ Fichier de BASE")
+    file_base = st.file_uploader("Importer BASE", type=["xlsx", "xls"])
+
+    if file_base is not None:
         df_base = pd.read_excel(file_base, dtype=str)
-        st.write("✅ Aperçu BASE :")
-        st.table(df_base.head(5))
+        st.write("Aperçu BASE")
+        st.dataframe(df_base.head())
 
     st.divider()
 
     # DATA
-    st.subheader("2️⃣ Fichier DATA (Non ordonné)")
-    file_data = st.file_uploader("Importer le fichier DATA", type=["xlsx", "xls"], key="u_data")
-    
-    if file_data:
-        df_data = pd.read_excel(file_data, dtype=str)
-        st.write("✅ Aperçu DATA :")
-        st.table(df_data.head(5))
+    st.subheader("2️⃣ Fichier DATA")
+    file_data = st.file_uploader("Importer DATA", type=["xlsx", "xls"])
 
-    # CALCUL
-    if 'df_base' in locals() and 'df_data' in locals():
+    if file_data is not None:
+        df_data = pd.read_excel(file_data, dtype=str)
+        st.write("Aperçu DATA")
+        st.dataframe(df_data.head())
+
+    # TRAITEMENT
+    if file_base is not None and file_data is not None:
         st.divider()
-        st.subheader("⚙️ Paramètres")
-        
+        st.subheader("Paramètres")
+
         c1, c2 = st.columns(2)
         with c1:
-            col_sap_base = st.selectbox("Lien BASE", df_base.columns)
+            col_sap_base = st.selectbox("Colonne BASE", df_base.columns)
         with c2:
-            col_sap_data = st.selectbox("Lien DATA", df_data.columns)
+            col_sap_data = st.selectbox("Colonne DATA", df_data.columns)
 
-        if st.button("🚀 Lancer le traitement"):
+        if st.button("Lancer traitement"):
             try:
                 df_res = executer_traitement(df_base, df_data, col_sap_base, col_sap_data)
-                st.success("Traitement terminé")
+                st.success("Terminé")
                 st.dataframe(df_res.head(10))
 
                 buffer = io.BytesIO()
                 with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
                     df_res.to_excel(writer, index=False)
-                
+
                 st.download_button(
-                    label="📥 Télécharger Excel",
+                    label="Télécharger Excel",
                     data=buffer.getvalue(),
-                    file_name="RESULTAT_TRIE.xlsx",
+                    file_name="RESULTAT.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
+
             except Exception as e:
                 st.error(f"Erreur : {e}")
 
 else:
-    st.subheader("📖 Instructions")
+    st.subheader("Instructions")
     st.write("Importer BASE puis DATA. La première colonne de BASE sera utilisée comme numéro.")
